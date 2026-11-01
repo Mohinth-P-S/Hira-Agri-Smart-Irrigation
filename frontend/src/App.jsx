@@ -12,6 +12,7 @@ import DatabaseDiagnostics from './components/DatabaseDiagnostics';
 import AuthModal from './components/AuthModal';
 import HardwareHelpModal from './components/HardwareHelpModal';
 import Footer from './components/Footer';
+import ResetDataModal from './components/ResetDataModal';
 
 import { 
   supabase, 
@@ -68,6 +69,8 @@ export default function App() {
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetToast, setResetToast] = useState(null);
 
   // Access Control: Standard / Free by default; No free premium access for anyone!
   const [isPremiumPlan, setIsPremiumPlan] = useState(() => {
@@ -287,6 +290,86 @@ export default function App() {
     updateIrrigationSimulation(38.5, false);
   };
 
+  const handleFullResetData = async ({ clearDb } = {}) => {
+    // 1. Reset Telemetry state to factory defaults
+    const baselineTelemetry = {
+      device_id: 'ESP32-HA-01',
+      soil_moisture: 38.5,
+      temperature: 27.8,
+      humidity: 64.0,
+      rain_detected: false,
+      pump_status: 'INACTIVE',
+      wifi_rssi: -64,
+      raw_adc: 2450,
+      ph: 6.8,
+      nitrogen: 145,
+      phosphorus: 52,
+      potassium: 215,
+      created_at: new Date().toISOString()
+    };
+    
+    prevPumpRef.current = false;
+    setTelemetry(baselineTelemetry);
+    setSimMoisture(38.5);
+    setSimRain(false);
+    setLastUpdatedTime('Just now');
+
+    // 2. Reset pump events to a clean baseline
+    const freshEvents = [
+      {
+        id: String(Date.now()),
+        event_type: 'SYSTEM_RESET',
+        reason: 'Factory telemetry & data reset executed by operator',
+        moisture_level: 38.5,
+        rain_detected: false,
+        duration_seconds: 0,
+        created_at: new Date().toISOString()
+      }
+    ];
+    setPumpEvents(freshEvents);
+
+    // 3. Reset 24h Sensor History
+    const now = Date.now();
+    const freshHistory = Array.from({ length: 12 }, (_, i) => ({
+      soil_moisture: +(36 + Math.sin(i / 2) * 5).toFixed(1),
+      temperature: +(26 + Math.cos(i / 3) * 3).toFixed(1),
+      humidity: +(62 + Math.sin(i / 2) * 4).toFixed(1),
+      rain_detected: false,
+      pump_status: 'INACTIVE',
+      created_at: new Date(now - (11 - i) * 10 * 60 * 1000).toISOString()
+    }));
+    setSensorHistory(freshHistory);
+
+    // 4. Reset Alerts
+    setAlerts([
+      {
+        id: String(Date.now()),
+        alert_type: 'SYSTEM_RESET',
+        title: 'System Data Reset',
+        message: 'Farm telemetry, charts, and event logs restored to factory baseline.',
+        severity: 'INFO'
+      }
+    ]);
+
+    // 5. If clearDb was checked and Supabase is configured
+    if (clearDb && isSupabaseConfigured()) {
+      try {
+        await supabase.from('sensor_readings').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('pump_events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      } catch (err) {
+        console.warn('Purge database notice:', err);
+      }
+    }
+
+    // 6. Clear local simulation cache
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('hira_sim_overrides');
+    }
+
+    setResetToast('✓ Farm data, sensor telemetry, and logs have been reset to factory baseline!');
+    setTimeout(() => setResetToast(null), 4500);
+  };
+
   const handleSimulateError = () => {
     prevPumpRef.current = false;
     setTelemetry({
@@ -418,7 +501,7 @@ export default function App() {
       </div>
 
       {/* Footer & Developer Credits */}
-      <Footer />
+      <Footer onOpenReset={() => setShowResetModal(true)} />
 
       {/* Pro License & Upgrade Modal */}
       {showUpgradeModal && (
@@ -508,6 +591,51 @@ export default function App() {
         <HardwareHelpModal 
           onClose={() => setShowHelpModal(false)} 
         />
+      )}
+
+      {/* Reset Data Confirmation Modal */}
+      <ResetDataModal 
+        isOpen={showResetModal}
+        onClose={() => setShowResetModal(false)}
+        onConfirmReset={handleFullResetData}
+        isSupabaseActive={isSupabaseConfigured()}
+      />
+
+      {/* Floating Success Toast */}
+      {resetToast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          backgroundColor: '#16382B',
+          color: '#FFFFFF',
+          padding: '14px 22px',
+          borderRadius: '16px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.22)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          zIndex: 10000,
+          border: '1px solid rgba(134, 239, 172, 0.4)',
+          fontSize: '0.86rem',
+          fontWeight: 600
+        }}>
+          <span>{resetToast}</span>
+          <button 
+            onClick={() => setResetToast(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              marginLeft: '8px',
+              fontSize: '1rem',
+              opacity: 0.8
+            }}
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );

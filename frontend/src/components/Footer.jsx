@@ -1,8 +1,8 @@
 import React from 'react';
-import { Mail, User, Cpu, ShieldCheck, Leaf } from 'lucide-react';
+import { Mail, User, Cpu, ShieldCheck, Leaf, RotateCcw } from 'lucide-react';
 import hiraLogo from '../assets/hira-agri-logo.png';
 
-export default function Footer() {
+export default function Footer({ onOpenReset }) {
   return (
     <footer className="hira-footer" style={{
       marginTop: '40px',
@@ -68,55 +68,85 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Developer & Contact Card */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            background: '#FFFFFF',
-            padding: '12px 20px',
-            borderRadius: '16px',
-            border: '1px solid var(--border-card)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-          }}>
+          {/* Right Action Block: Developer Contact & Reset Data Button */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px' }}>
+            {/* Developer & Contact Card */}
             <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              background: 'var(--green-light)',
-              color: 'var(--green-primary)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              gap: '14px',
+              background: '#FFFFFF',
+              padding: '10px 18px',
+              borderRadius: '16px',
+              border: '1px solid var(--border-card)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
             }}>
-              <User size={20} />
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '12px',
+                background: 'var(--green-light)',
+                color: 'var(--green-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <User size={20} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                  Lead Developer &amp; Engineering
+                </div>
+                <div style={{ fontSize: '0.96rem', fontWeight: 700, color: 'var(--green-dark)' }}>
+                  M. HARIS AHAMED
+                </div>
+                <a 
+                  href="mailto:harisahamed.m@gmail.com" 
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '0.82rem',
+                    color: 'var(--green-primary)',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    marginTop: '2px'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                  onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+                >
+                  <Mail size={13} />
+                  <span>harisahamed.m@gmail.com</span>
+                </a>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
-                Lead Developer &amp; Engineering
-              </div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--green-dark)' }}>
-                M. HARIS AHAMED
-              </div>
-              <a 
-                href="mailto:harisahamed.m@gmail.com" 
+
+            {/* Reset Data Button */}
+            {onOpenReset && (
+              <button 
+                onClick={onOpenReset}
+                className="btn-secondary"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '0.84rem',
-                  color: 'var(--green-primary)',
-                  textDecoration: 'none',
+                  gap: '8px',
+                  padding: '12px 18px',
+                  backgroundColor: '#FFF1F2',
+                  borderColor: '#FECDD3',
+                  color: '#DC2626',
+                  borderRadius: '14px',
                   fontWeight: 600,
-                  marginTop: '2px'
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 6px rgba(220, 38, 38, 0.08)'
                 }}
-                onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+                title="Reset Farm Telemetry, Event Logs & Sensor Data to Factory Defaults"
               >
-                <Mail size={14} />
-                <span>harisahamed.m@gmail.com</span>
-              </a>
-            </div>
+                <RotateCcw size={16} />
+                <span>Reset Data</span>
+              </button>
+            )}
           </div>
         </div>
 
