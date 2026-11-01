@@ -1,68 +1,114 @@
-import React from 'react'
-import { LANGUAGES, TRANSLATIONS } from '../i18n'
+import React from 'react';
+import { Wifi, WifiOff, Database, User, ShieldCheck, HelpCircle } from 'lucide-react';
+import hiraLogo from '../assets/hira-agri-logo.png';
 
-export default function Header({
-  currentLang,
-  onChangeLanguage,
-  accessibilityMode,
-  onToggleAccessibility,
-  audioEnabled,
-  onToggleAudio,
-  onResetWelcome
+export default function Header({ 
+  isConnected, 
+  user, 
+  onOpenAuth, 
+  onOpenDiagnostics,
+  onOpenHelp,
+  hasSchemaError 
 }) {
-  const t = TRANSLATIONS[currentLang] || TRANSLATIONS.ta
+  const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const currentDate = new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 
   return (
-    <header className="app-header" role="banner">
-      <div className="brand" tabIndex="0" onClick={onResetWelcome} style={{ cursor: 'pointer' }} title="Go to Welcome Screen">
-        <img src="/navigov-icon.png" alt="NaviGov" className="brand-logo-img" />
-        <div className="brand-titles">
-          <h1>{t.appName}</h1>
-          <p>{t.appSubtitle}</p>
+    <header className="hira-header">
+      {/* Brand & Logo */}
+      <div className="brand-wrapper">
+        <img 
+          src={hiraLogo} 
+          alt="Hira Agri Logo" 
+          className="brand-logo-img"
+          style={{
+            width: '46px',
+            height: '46px',
+            borderRadius: '14px',
+            objectFit: 'contain',
+            boxShadow: '0 4px 12px rgba(34, 123, 78, 0.2)',
+            border: '1px solid rgba(255, 255, 255, 0.4)'
+          }}
+        />
+        <div>
+          <div className="brand-title">HIRA AGRI</div>
+          <div className="brand-subtitle">Smart Irrigation &amp; Field Intelligence</div>
         </div>
       </div>
 
-      <div className="header-controls" role="toolbar" aria-label="Accessibility and Language Settings">
-        {/* Accessibility Mode Toggle */}
-        <button
-          type="button"
-          className={`ctrl-btn ${accessibilityMode ? 'active' : ''}`}
-          onClick={onToggleAccessibility}
-          aria-pressed={accessibilityMode}
-          title={accessibilityMode ? t.accessibilityOn : t.accessibilityOff}
-          aria-label={accessibilityMode ? t.accessibilityOn : t.accessibilityOff}
+      {/* Center / Time & Cloud Sync */}
+      <div className="header-actions">
+        {/* Real-time Connection Status */}
+        <div className="live-pill" style={{
+          backgroundColor: isConnected ? 'var(--green-light)' : '#FEE2E2',
+          borderColor: isConnected ? 'var(--green-border)' : '#FCA5A5',
+          color: isConnected ? 'var(--green-primary)' : 'var(--red-alert)'
+        }}>
+          {isConnected ? (
+            <>
+              <div className="pulse-dot" />
+              <span>ESP32 Live Telemetry</span>
+            </>
+          ) : (
+            <>
+              <WifiOff size={14} />
+              <span>Local Offline Mode</span>
+            </>
+          )}
+        </div>
+
+        {/* Database Health Badge if error detected */}
+        {hasSchemaError && (
+          <button 
+            onClick={onOpenDiagnostics}
+            className="btn-secondary" 
+            style={{ 
+              borderColor: '#F59E0B', 
+              color: '#B45309', 
+              backgroundColor: '#FEF3C7',
+              padding: '6px 12px',
+              fontSize: '0.78rem'
+            }}
+          >
+            <Database size={14} />
+            <span>Fix Database Schema</span>
+          </button>
+        )}
+
+        {/* Date & Time */}
+        <div className="summary-chip" style={{ display: 'none', md: 'flex' }}>
+          <span>{currentDate} • {currentTime}</span>
+        </div>
+
+        {/* Database Settings / Help */}
+        <button 
+          onClick={onOpenDiagnostics} 
+          className="btn-secondary" 
+          title="Supabase Database Settings & Diagnostics"
+          style={{ padding: '8px 12px' }}
         >
-          <span aria-hidden="true">👁️</span>
-          <span>{accessibilityMode ? 'A11y ON' : 'A11y'}</span>
+          <Database size={16} />
         </button>
 
-        {/* Audio Output Toggle */}
-        <button
-          type="button"
-          className={`ctrl-btn ${audioEnabled ? 'active' : ''}`}
-          onClick={onToggleAudio}
-          aria-pressed={audioEnabled}
-          title={audioEnabled ? t.audioOn : t.audioMuted}
-          aria-label={audioEnabled ? t.audioOn : t.audioMuted}
+        <button 
+          onClick={onOpenHelp} 
+          className="btn-secondary" 
+          title="Hardware Setup & Beginner Guide"
+          style={{ padding: '8px 12px' }}
         >
-          <span aria-hidden="true">{audioEnabled ? '🔊' : '🔇'}</span>
-          <span>{audioEnabled ? 'Voice ON' : 'Muted'}</span>
+          <HelpCircle size={16} />
         </button>
 
-        {/* Language selector */}
-        <select
-          value={currentLang}
-          onChange={(e) => onChangeLanguage(e.target.value)}
-          className="ctrl-btn"
-          aria-label="Select display language"
+        {/* User Account / Profile */}
+        <button 
+          onClick={onOpenAuth} 
+          className="btn-primary"
+          style={{ padding: '8px 16px' }}
         >
-          {LANGUAGES.map((l) => (
-            <option key={l.code} value={l.code}>
-              {l.label} ({l.name})
-            </option>
-          ))}
-        </select>
+          <User size={16} />
+          <span>{user ? user.email.split('@')[0] : 'Farmer Account'}</span>
+        </button>
       </div>
     </header>
-  )
+  );
 }

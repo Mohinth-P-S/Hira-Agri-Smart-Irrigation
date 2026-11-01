@@ -1,254 +1,251 @@
-# 🏛️ NaviGov (Navigate Government Schemes & Services)
-### Voice-First AI Citizen Scheme, Certificate & Scholarship Assistant
-**நேவிகோவ் (NaviGov) / नेविगोव (NaviGov)**
+# 🌱 HIRA AGRI – SMART IRRIGATION SYSTEM
+### Complete IoT Hardware Integration, Autonomous Irrigation Engine & Cloud Telemetry
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python: 3.14+](https://img.shields.io/badge/Python-3.14+-blue.svg)](https://www.python.org/)
-[![React: 18](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev/)
-[![Gemini: 3.5 Flash](https://img.shields.io/badge/Google%20Gemini-3.5%20Flash-orange.svg)](https://ai.google.dev/)
-[![WCAG: AAA Compliance](https://img.shields.io/badge/Accessibility-WCAG%20AAA-brightgreen.svg)](https://www.w3.org/WAI/standards-guidelines/wcag/)
-[![Live on Vercel](https://img.shields.io/badge/Vercel-Live%20Production-black.svg)](https://ai-chatbot-blue-one-21.vercel.app)
+[![Microcontroller: ESP32](https://img.shields.io/badge/ESP32-WROOM--32-blue.svg)](https://www.espressif.com/en/products/socs/esp32)
+[![Database: Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20Realtime-3ECF8E.svg)](https://supabase.com/)
+[![Frontend: React + Vite](https://img.shields.io/badge/React%2018-Vite%20SPA-61DAFB.svg)](https://vitejs.dev/)
+[![Tests: 100% Passed](https://img.shields.io/badge/Tests-10%2F10%20Passed-brightgreen.svg)](tests/TESTING_REPORT.md)
 
-> **NaviGov** is a voice-first, multilingual AI assistant built to help citizens navigate government schemes, clarify doubts regarding certificates and scholarships, and calculate scheme eligibility. It operates in **Tamil (`ta-IN`)**, **Hindi (`hi-IN`)**, and **English (`en-IN`)**.
-
----
-
-## 🌟 Key Features
-
-1. **Voice-First Interaction (Web Speech API)**:
-   - Real-time speech recognition (STT) and speech synthesis (TTS) in Tamil, Hindi, and English with auto read-aloud and device voice detection.
-2. **Deterministic, Auditable Eligibility Engine**:
-   - 100% plain Python rule evaluation (zero hallucination). Evaluates age limits, income caps, categories, gender, and school history to return `eligible`, `maybe`, or `not_eligible` with human-readable legal reasons.
-3. **Grounded AI Answers (Google Gemini 3.8 Flash)**:
-   - Grounded strictly in our verified government database. Always includes official application URLs and verification dates.
-4. **Guided 7-Question Scholarship Finder**:
-   - A step-by-step, one-question-at-a-time flow that speaks each question aloud and accepts touch or voice answers.
-5. **Interactive Document Checklist**:
-   - Dynamic progress tracker where citizens check off documents they have (Aadhaar, Marksheets, Ration Card), with audio summaries of remaining requirements.
-6. **Privacy-Preserving Document Scanner**:
-   - Gemini Vision OCR with mandatory explicit privacy consent. Processes images strictly in RAM and discards them immediately.
-   - Automatically masks all ID digits except the last 4 (e.g. `XXXX-XXXX-8921`).
-7. **Accessibility Mode (WCAG AAA)**:
-   - Instant high-contrast theme (Pure Black `#000000` with Bright Yellow `#FFFF00` and Cyan `#00FFFF`), 1.35x enlarged text, visible 4px focus rings, and full keyboard navigation.
-8. **Kiosk Demo Mode (`?kiosk=1`)**:
-   - Fullscreen-style layout with giant touch buttons and an automatic **60-second inactivity auto-reset timer** that wipes session data when a citizen walks away.
-9. **"Talk to a Human" Fallback**:
-   - Direct helpline directory (TN CM Helpline 1100, Elderline 14567, Women Helpline 181, e-Sevai 1800-425-1333) and Common Service Centre (CSC) locator.
+**Hira Agri – Smart Irrigation** is an end-to-end IoT agricultural monitoring and autonomous irrigation platform. It combines edge-level embedded control running locally on an **ESP32 WROOM-32** with a modern, responsive web dashboard built in natural cream and agricultural green colors.
 
 ---
 
-## 🏗️ System Architecture
+## 🌾 System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Frontend (React 18 + Vite)"]
-        UI["Mobile-First UI\n(Tamil / Hindi / English)"]
-        Speech["Web Speech API\n(STT: ta-IN, hi-IN, en-IN | TTS: Read Aloud)"]
-        A11y["Accessibility Layer\n(WCAG AAA High Contrast & Keyboard Nav)"]
-        Kiosk["Kiosk Manager\n(60s Inactivity Auto-Reset & Data Wipe)"]
+    subgraph Hardware ["Edge Hardware (Field Level)"]
+        CAP["Capacitive Soil Probe (GPIO 34)"]
+        DHT["DHT22 Temp & Humidity (GPIO 4)"]
+        RAIN["Rain Detector Array (GPIO 35)"]
+        ESP["ESP32 WROOM-32\n(100% Autonomous Local Control)"]
+        RELAY["5V Relay Module (GPIO 26)"]
+        PUMP["Submersible Water Pump"]
     end
 
-    subgraph Server ["Backend (FastAPI & Python 3.14)"]
-        API["FastAPI REST Endpoints\n(/api/chat, /api/eligibility, /api/scan, /api/services)"]
-        Engine["Deterministic Eligibility Engine\n(100% Plain Python Rules)"]
-        Guard["Privacy & Security Guard\n(In-Memory OCR & ID Masking: XXXX-XXXX-1234)"]
+    subgraph Logic ["Autonomous Irrigation Engine"]
+        HYST["Hysteresis State Machine\n- Moisture < 30%: Pump ON\n- Moisture > 50%: Pump OFF\n- 30% to 50%: Maintain Previous State\n- Rain Detected: IMMEDIATE PUMP OFF (Priority Override)"]
     end
 
-    subgraph External ["Data & Cloud Services"]
-        KB[("Knowledge Base JSON\n16 Scholarships, 5 Certificates, 4 Pensions")]
-        Gemini["Google Gemini 3.8 Flash API\n(Grounded Explanations & Vision OCR)"]
+    subgraph Cloud ["Supabase Cloud Backend"]
+        EDGE["Supabase Edge Function\n(/ingest-sensor-data)\n(Secure Device Token Auth)"]
+        DB[("PostgreSQL Database\n- profiles\n- devices\n- sensor_readings (created_at)\n- pump_events\n- device_alerts")]
+        RT["Supabase Realtime\n(WebSocket Push)"]
     end
 
-    UI --> API
-    Speech --> UI
-    A11y --> UI
-    Kiosk --> UI
-    API --> Engine
-    API --> Guard
-    API --> KB
-    API --> Gemini
+    subgraph Client ["Hira Agri Web Dashboard"]
+        UI["React 18 + Vite SPA\n- 6 Core Status Cards\n- Interactive Historical Charts\n- ESP32 Device Manager\n- Pump Audit Log\n- Interactive IoT Simulator"]
+    end
+
+    CAP -->|Analog ADC1| ESP
+    DHT -->|Digital Signal| ESP
+    RAIN -->|Digital Override| ESP
+    ESP --> HYST
+    HYST -->|Local Switching| RELAY
+    RELAY --> PUMP
+
+    ESP -.->|HTTPS (every 10s)| EDGE
+    EDGE --> DB
+    DB --> RT
+    RT --> UI
 ```
 
----
-
-## 🚀 How to Run Locally
-
-### Prerequisites
-- **Python 3.10+** (tested on Python 3.14)
-- **Node.js 18+** (with npm)
-- **Git**
-- A free Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+> [!IMPORTANT]
+> **Zero Cloud Dependency for Irrigation Safety**: The water pump is switched **strictly locally** by the ESP32 relay GPIO without requiring internet connectivity or server responses. If Wi-Fi is lost, crops continue to be irrigated automatically.
 
 ---
 
-### Step 1: Clone the Repository
-```bash
-git clone https://github.com/YOUR_USERNAME/jan-sahayak.git
-cd jan-sahayak
+## 📌 GPIO Pin Configuration Table
+
+| Sensor / Component | Pin Name | ESP32 GPIO Pin | Wire Type | Voltage Requirement | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Capacitive Moisture Sensor** | `AOUT` | **GPIO 34** (ADC1) | Analog In | 3.3V | Soil dielectric moisture reading (0% - 100%) |
+| | `VCC` | **3V3** | Power | 3.3V | Sensor logic power |
+| | `GND` | **GND** | Ground | 0V | Common system ground |
+| **DHT22 Sensor** | `DATA` | **GPIO 4** | Digital I/O | 3.3V | Air temperature (°C) & relative humidity (%) |
+| | `VCC` | **3V3** | Power | 3.3V | Sensor logic power |
+| | `GND` | **GND** | Ground | 0V | Common system ground |
+| **Rain Detector Board** | `DO` | **GPIO 35** | Digital In | 3.3V | Active LOW when raindrops touch sensor plate |
+| | `VCC` | **3V3** | Power | 3.3V | Sensor logic power |
+| | `GND` | **GND** | Ground | 0V | Common system ground |
+| **Water Pump Relay** | `IN` | **GPIO 26** | Digital Out | 3.3V Logic | Active LOW optocoupler relay control |
+| | `VCC` | **VIN (5V)** | Power | 5V | Coil driving power from USB |
+| | `GND` | **GND** | Ground | 0V | Common ground |
+| **Status LED** | Internal | **GPIO 2** | Digital Out | 3.3V | Blinks on Wi-Fi connection; solid when online |
+
+*Detailed wiring schematics and diagrams are available in [esp32/WIRING_DIAGRAM.md](esp32/WIRING_DIAGRAM.md).*
+
+---
+
+## 🛠️ Resolving the Database Schema Error
+
+### The Error:
+```text
+Could not load database data: column sensor_readings.created_at does not exist
 ```
 
----
+### The Root Cause:
+PostgreSQL error `42703` occurs when the `sensor_readings` table exists but was created without the `created_at` timestamp column, or named it `recorded_at`/`timestamp`.
 
-### Step 2: Set Up Backend
-1. Create a Python virtual environment:
-   ```powershell
-   python -m venv backend\.venv
-   backend\.venv\Scripts\activate
-   ```
-2. Install Python dependencies:
-   ```powershell
-   pip install -r backend\requirements.txt
-   ```
-3. Set up your Gemini API key:
-   - Double-click **`setup_key.bat`** (automated helper), OR
-   - Copy `backend\.env.example` to `backend\.env` and paste your key:
-     ```env
-     GEMINI_API_KEY=your_actual_key_here
-     GEMINI_MODEL=gemini-3.8-flash
-     ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-     PORT=8005
-     ```
-4. Run the automated test suite:
-   ```powershell
-   pytest backend\tests\
-   ```
-5. Start the backend server:
-   ```powershell
-   cd backend
-   uvicorn app.main:app --reload --port 8005
-   ```
-   Backend will be live at: `http://localhost:8005/api/health`
+### The 1-Click Fix:
+1. Open your **Supabase Dashboard** at [supabase.com](https://supabase.com/).
+2. In the left sidebar, click **SQL Editor** (`>_`).
+3. Open the migration file: `supabase/migrations/20261101_02_fix_created_at_column.sql`.
+4. Copy its contents, paste into the Supabase SQL Editor, and click **Run**.
+5. The column `created_at` will be created, backfilled from existing timestamps if present, set to `DEFAULT timezone('utc'::text, now()) NOT NULL`, and indexed for instant historical chart performance.
 
 ---
 
-### Step 3: Set Up Frontend
-1. Open a new terminal and navigate to `frontend`:
+## 🚀 Beginner Quickstart: Running the Web Dashboard
+
+### 1. Requirements:
+- **Node.js** (v18+ installed)
+
+### 2. Start the Frontend Server:
+Open PowerShell in the project directory:
+
+```powershell
+cd D:\AntiGravity\frontend
+npm install
+npm run dev
+```
+
+Open your browser to:
+**`http://localhost:5173`**
+
+### 3. Built-in Interactive IoT Simulator:
+Even before flashing your ESP32 hardware, the dashboard includes a live interactive simulator:
+- Drag the **Moisture Slider** below 30% &rarr; Watch the Pump immediately switch to **ACTIVE (ON)**!
+- Drag the **Moisture Slider** above 50% &rarr; Watch the Pump switch to **INACTIVE (OFF)**!
+- Slide within **30% - 50%** &rarr; Verify the **Hysteresis deadband** (maintains previous state).
+- Click **Rain: DETECTED** &rarr; Verify the **Priority Rain Override** shuts off the pump instantly.
+
+---
+
+## ⚡ Flashing the ESP32 Firmware
+
+### 1. Arduino IDE Setup:
+1. Install **Arduino IDE 2.x** from [arduino.cc](https://www.arduino.cc/).
+2. Go to **File &gt; Preferences** and paste this into **Additional Boards Manager URLs**:
+   ```text
+   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+   ```
+3. Go to **Tools &gt; Board &gt; Boards Manager**, search for `esp32` by Espressif Systems, and click **Install**.
+4. Go to **Tools &gt; Manage Libraries**, install:
+   - `DHT sensor library` by Adafruit
+   - `Adafruit Unified Sensor`
+
+### 2. Configure Wi-Fi & Credentials:
+Open `esp32/config.h` in Arduino IDE or a text editor:
+```cpp
+const char* WIFI_SSID     = "YOUR_WIFI_NAME";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* SUPABASE_FUNCTION_URL = "https://YOUR_PROJECT_ID.functions.supabase.co/ingest-sensor-data";
+const char* DEVICE_ID     = "ESP32-HA-01";
+const char* DEVICE_TOKEN  = "hira_agri_esp32_secret_token_2026";
+```
+
+### 3. Upload:
+1. Connect your ESP32 to your PC using a Micro-USB cable.
+2. Select **Tools &gt; Board &gt; ESP32 Arduino &gt; ESP32 Dev Module**.
+3. Select your ESP32 port under **Tools &gt; Port** (e.g. `COM3` or `COM4`).
+4. Click **Upload** (Right arrow).
+5. Open **Tools &gt; Serial Monitor** at **115200 baud** to view live telemetry!
+
+---
+
+## 🧪 Automated Testing Report
+
+All 10 scenarios required by the system specification are automated and verified:
+
+```powershell
+python -m unittest discover -s D:\AntiGravity\tests -p "test_*.py" -v
+node D:\AntiGravity\tests\test_irrigation_logic.js
+```
+
+```text
+✓ Test 1: Moisture = 20%, no rain -> Pump ON
+✓ Test 2: Moisture = 40%, prev ON -> Pump remains ON (Hysteresis)
+✓ Test 3: Moisture = 40%, prev OFF -> Pump remains OFF (Hysteresis)
+✓ Test 4: Moisture = 60% -> Pump OFF
+✓ Test 5: Rain detected, moisture = 20% -> Pump OFF (Priority Override)
+✓ Test 6: Rain stops, moisture = 20% -> Pump ON again after rain cleared
+✓ Test 7: Wi-Fi disconnected -> Local automatic irrigation continues functioning
+✓ Test 8: ESP32 restarted -> Pump starts OFF (Boot failsafe)
+✓ Test 9: Invalid sensor reading -> Safe pump-OFF
+✓ Test 10: Ingestion payload generation -> Valid JSON format
+```
+
+Detailed test report available at [tests/TESTING_REPORT.md](tests/TESTING_REPORT.md).
+
+---
+
+## 🚢 Production Deployment to Vercel
+
+The frontend is ready for 1-click production deployment:
+
+1. **Build locally**:
    ```powershell
    cd frontend
-   npm install
+   npm run build
    ```
-2. Start the Vite dev server:
+2. **Deploy with Vercel CLI**:
    ```powershell
-   npm run dev
+   vercel --prod
    ```
-3. Open **[http://localhost:5173](http://localhost:5173)** in Google Chrome!
-   *(For Kiosk Mode, open [http://localhost:5173/?kiosk=1](http://localhost:5173/?kiosk=1))*.
+3. Set your production environment variables in the Vercel Project Settings:
+   - `VITE_SUPABASE_URL`: Your Supabase Project URL (`https://your-id.supabase.co`)
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase Anon Key
 
 ---
 
-## ☁️ How to Deploy
+## 📁 Repository Directory Structure
 
-### 1. Backend on Render (Free Web Service)
-1. Go to [Render Dashboard](https://dashboard.render.com/) ➔ **New +** ➔ **Web Service**.
-2. Connect your GitHub repository.
-3. Configure:
-   - **Root Directory**: `backend`
-   - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-4. Add Environment Variables:
-   - `GEMINI_API_KEY`: *(your Gemini key)*
-   - `GEMINI_MODEL`: `gemini-3.8-flash`
-   - `ALLOWED_ORIGINS`: `https://*.vercel.app,http://localhost:5173`
-5. Copy your live Render URL (e.g. `https://jan-sahayak-backend.onrender.com`).
-
-### 2. Frontend on Vercel
-1. Go to [Vercel](https://vercel.com/) ➔ **Add New...** ➔ **Project**.
-2. Import your GitHub repository.
-3. Configure:
-   - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-4. Add Environment Variable:
-   - `VITE_API_BASE_URL`: `https://jan-sahayak-backend.onrender.com`
-5. Click **Deploy**!
-
-> [!NOTE]
-> Free cloud servers sleep after 15 minutes of inactivity. The first request after sleep takes 30-40 seconds to spin up. Jan Sahayak displays an automatic waking-up message in the UI so users are kept informed!
-
----
-
-## 🛠️ How to Extend Jan Sahayak
-
-### 1. Adding a New Government Scheme
-Open `data/scholarships.json` (or `data/pensions.json` or `data/certificates.json`) and append an entry:
-```json
-{
-  "id": "new-scheme-id",
-  "name": "Scheme Name",
-  "level": "central",
-  "state": "All",
-  "short_description": "Plain language explanation",
-  "benefits": "₹15,000 per year",
-  "eligibility_rules": {
-    "min_age": 16,
-    "max_age": 28,
-    "max_family_income": 300000,
-    "allowed_categories": ["SC", "ST", "OBC"],
-    "gender": "any",
-    "requires_disability": false,
-    "education_levels": ["Undergraduate"]
-  },
-  "required_documents": ["Aadhaar Card", "Income Certificate"],
-  "how_to_apply": "Apply via official portal",
-  "deadline": "Check portal",
-  "source_url": "https://official.gov.in",
-  "last_verified": "2026-10-29",
-  "status": "verified"
-}
+```text
+D:\AntiGravity\
+├── esp32/
+│   ├── hira_agri_firmware.ino       # Complete ESP32 embedded C++ firmware
+│   ├── config.h                     # Wi-Fi, Supabase endpoint, calibration constants
+│   ├── WIRING_DIAGRAM.md            # Hardware connection diagram & GPIO tables
+│   └── CALIBRATION_GUIDE.md         # 2-minute capacitive sensor calibration guide
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Header.jsx           # Hira Agri brand, connection badge, time
+│   │   │   ├── WelcomeBanner.jsx    # Farmer greeting & sector summary chips
+│   │   │   ├── StatusCards.jsx      # 6 Core Cards (Moisture, Temp, Hum, Rain, Pump, Plan)
+│   │   │   ├── SensorCharts.jsx     # Interactive SVG time-series charts (1h/24h/7d/30d)
+│   │   │   ├── SoilAnalysis.jsx     # Premium pH & NPK section (hardware-validated)
+│   │   │   ├── PumpEvents.jsx       # Recent pump events audit table
+│   │   │   ├── DeviceManager.jsx    # Registered ESP32 devices & signal monitor
+│   │   │   ├── AlertsDrawer.jsx     # Real-time alert notifications
+│   │   │   ├── SimulationControls.jsx # Interactive IoT hardware simulator
+│   │   │   ├── DatabaseDiagnostics.jsx # 1-Click fix for created_at schema error
+│   │   │   ├── AuthModal.jsx        # Supabase user sign-in & sign-up
+│   │   │   └── HardwareHelpModal.jsx# Beginner hardware wiring & flashing guide
+│   │   ├── lib/
+│   │   │   ├── supabase.js          # Supabase client, Realtime, query helpers
+│   │   │   └── irrigationLogic.js   # Pure hysteresis & rain override state machine
+│   │   ├── styles/
+│   │   │   └── hira-agri.css        # Cream & natural green design system
+│   │   ├── App.jsx                  # Main dashboard shell
+│   │   └── main.jsx                 # Entrypoint
+│   ├── package.json
+│   ├── index.html
+│   └── vite.config.js
+├── supabase/
+│   ├── migrations/
+│   │   ├── 20261101_01_hira_agri_schema.sql         # Full schema, RLS, triggers, indexes
+│   │   └── 20261101_02_fix_created_at_column.sql    # Idempotent created_at error fix
+│   └── functions/
+│       └── ingest-sensor-data/
+│           └── index.ts             # Secure device ingestion Edge Function
+├── tests/
+│   ├── irrigation_controller.py     # Python logic reference model
+│   ├── test_irrigation_logic.py     # Automated unittest suite (10 scenarios)
+│   ├── test_irrigation_logic.js     # Node.js verification runner
+│   └── TESTING_REPORT.md            # Comprehensive test execution report
+├── vercel.json                      # Vercel SPA deployment configuration
+└── README.md                        # Complete project documentation
 ```
-*The deterministic eligibility engine automatically evaluates it immediately with zero code changes.*
-
-### 2. Adding a New Language (e.g., Telugu, Kannada)
-Open `frontend/src/i18n.js`:
-1. Add an entry to the `LANGUAGES` array:
-   ```javascript
-   { code: 'te', label: 'తెలుగు', name: 'Telugu', speechCode: 'te-IN', greeting: 'నమస్కారం! నేను జన సహాయక్...' }
-   ```
-2. Add translation strings for UI labels under `TRANSLATIONS.te`.
-
-### 3. Adding a New State
-In any scheme's `"state"` field, specify the state name (e.g. `"Karnataka"` or `"Maharashtra"`). The eligibility engine automatically enforces state residence checks.
-
----
-
-## ⚠️ Known Limitations of this Prototype
-
-1. **Speech Recognition Browser Support**: The Web Speech API works natively in Chromium browsers (Google Chrome, Microsoft Edge, Brave). On Safari or Firefox, voice input falls back to text typing.
-2. **Device TTS Language Packs**: Text-to-speech output depends on whether the user's OS has Tamil/Hindi speech synthesizers installed. If missing, Jan Sahayak surfaces a diagnostic banner and text displays normally.
-3. **Simulated Document Uploads**: For security, this prototype uses sample/dummy documents and masks all identification numbers. Real Aadhaar biometric authentication is excluded from this scope.
-
----
-
-## 🗺️ Roadmap to Full Production Product
-
-```mermaid
-flowchart LR
-    A["Phase 1: Working Prototype\n(Current Scope)"] --> B["Phase 2: DigiLocker & NSP API\n(Official API Integration)"]
-    B --> C["Phase 3: Omnichannel Delivery\n(WhatsApp & Phone IVR)"]
-    C --> D["Phase 4: Physical Kiosk Hardware\n(Village Gram Panchayats)"]
-```
-
-1. **National Portals & DigiLocker Integration**:
-   - Official OAuth integration with **DigiLocker** to pull verified caste, income, and marksheet credentials directly with citizen biometric consent.
-   - Two-way API integration with the **National Scholarship Portal (NSP)** and Tamil Nadu **e-Sevai (TNeGA)** for direct application status tracking.
-2. **All 22 Scheduled Indian Languages**:
-   - Expand AI grounding and voice synthesis across all 22 official Indian languages using open Indic models (e.g. AI4Bharat / Bhashini).
-3. **Omnichannel Access (WhatsApp Voice Bot & IVR)**:
-   - Voice-based WhatsApp chatbot and a toll-free `1800` telephone hotline for citizens without smartphones.
-4. **Physical Panchayat Kiosk Hardware**:
-   - Standalone rugged kiosks for Village Administrative Offices (VAO) and Gram Panchayats equipped with thermal printers and biometric fingerprint scanners.
-
----
-
-## 📄 Documentation Links
-* [3-Minute Hackathon Demo Script](file:///d:/AntiGravity/docs/DEMO_SCRIPT.md)
-* [System Architecture Deep-Dive](file:///d:/AntiGravity/docs/ARCHITECTURE.md)
-* [End-to-End Testing Checklist](file:///d:/AntiGravity/docs/TESTING_CHECKLIST.md)
-* [Implementation Plan Roadmap](file:///d:/AntiGravity/docs/IMPLEMENTATION_PLAN.md)
-* [Original Project Brief](file:///d:/AntiGravity/PROJECT_BRIEF.md)
-
----
-
-## ⚖️ License
-Distributed under the MIT License. Built with ❤️ for Indian citizens.

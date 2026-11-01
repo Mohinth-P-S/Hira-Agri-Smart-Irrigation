@@ -1,514 +1,379 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { LANGUAGES, TRANSLATIONS } from './i18n'
-import Header from './components/Header'
-import WelcomeScreen from './components/WelcomeScreen'
-import ChatScreen from './components/ChatScreen'
-import ScholarshipFinder from './components/ScholarshipFinder'
-import ServicesGuide from './components/ServicesGuide'
-import ScanScreen from './components/ScanScreen'
-import HelplineScreen from './components/HelplineScreen'
-import KioskBar from './components/KioskBar'
-import VoiceNotice from './components/VoiceNotice'
-import Footer from './components/Footer'
-import {
-  speakText,
-  stopSpeaking,
-  checkVoiceAvailability,
-  createSpeechRecognizer,
-  getAvailableVoices
-} from './utils/speech'
+import React, { useState, useEffect, useRef } from 'react';
+import Header from './components/Header';
+import WelcomeBanner from './components/WelcomeBanner';
+import StatusCards from './components/StatusCards';
+import SensorCharts from './components/SensorCharts';
+import DeviceManager from './components/DeviceManager';
+import SoilAnalysis from './components/SoilAnalysis';
+import PumpEvents from './components/PumpEvents';
+import AlertsDrawer from './components/AlertsDrawer';
+import SimulationControls from './components/SimulationControls';
+import DatabaseDiagnostics from './components/DatabaseDiagnostics';
+import AuthModal from './components/AuthModal';
+import HardwareHelpModal from './components/HardwareHelpModal';
+
+import { 
+  supabase, 
+  isSupabaseConfigured, 
+  fetchLatestSensorReading, 
+  fetchPumpEvents, 
+  fetchSensorHistory,
+  isMissingCreatedAtError
+} from './lib/supabase';
+import { evaluateIrrigationState } from './lib/irrigationLogic';
+import './styles/hira-agri.css';
 
 export default function App() {
-  const [currentLang, setCurrentLang] = useState(() => {
-    return localStorage.getItem('js_lang') || 'ta'
-  })
+  // Telemetry state
+  const [telemetry, setTelemetry] = useState({
+    device_id: 'ESP32-HA-01',
+    soil_moisture: 38.5,
+    temperature: 27.8,
+    humidity: 64.0,
+    rain_detected: false,
+    pump_status: 'INACTIVE',
+    wifi_rssi: -64,
+    raw_adc: 2450,
+    ph: null,       // Null by default; shown only when actual supported hardware data exists
+    nitrogen: null,
+    phosphorus: null,
+    potassium: null,
+    created_at: new Date().toISOString()
+  });
 
-  // Screens: 'welcome' | 'chat' | 'scholarship_finder' | 'services_guide'
-  const [screen, setScreen] = useState(() => {
-    return localStorage.getItem('js_screen') || 'welcome'
-  })
-
-  const [servicesDefaultTab, setServicesDefaultTab] = useState('certificates')
-
-  const [accessibilityMode, setAccessibilityMode] = useState(() => {
-    return localStorage.getItem('js_a11y') === 'true'
-  })
-
-  const [audioEnabled, setAudioEnabled] = useState(() => {
-    return localStorage.getItem('js_audio') !== 'false'
-  })
-
-  const [messages, setMessages] = useState([])
-  const [sessionProfile, setSessionProfile] = useState({})
-  const [isLoading, setIsLoading] = useState(false)
-
-  // Kiosk Mode States
-  const [isKioskMode, setIsKioskMode] = useState(false)
-  const [kioskCountdown, setKioskCountdown] = useState(60)
-
-  // Voice States
-  const [isListening, setIsListening] = useState(false)
-  const [interimTranscript, setInterimTranscript] = useState('')
-  const [currentlySpeakingIndex, setCurrentlySpeakingIndex] = useState(null)
-  const [voiceNotice, setVoiceNotice] = useState(null)
-
-  const activeRecognizerRef = useRef(null)
-
-  const t = TRANSLATIONS[currentLang] || TRANSLATIONS.ta
-
-  // Synchronize accessibility mode with HTML body class
-  useEffect(() => {
-    if (accessibilityMode) {
-      document.body.classList.add('a11y-mode')
-    } else {
-      document.body.classList.remove('a11y-mode')
+  const [pumpEvents, setPumpEvents] = useState([]);
+  const [sensorHistory, setSensorHistory] = useState([]);
+  const [devices, setDevices] = useState([]);
+  const [alerts, setAlerts] = useState([
+    {
+      id: 'alt_01',
+      alert_type: 'LOW_MOISTURE',
+      title: 'Irrigation Rule',
+      message: 'Automated irrigation active. Pump turns ON automatically below 30% and OFF above 50%.',
+      severity: 'INFO'
     }
-    localStorage.setItem('js_a11y', accessibilityMode)
-  }, [accessibilityMode])
+  ]);
 
-  // Synchronize language code with HTML lang attribute
+  // UI state
+  const [isCloudConnected, setIsCloudConnected] = useState(isSupabaseConfigured());
+  const [isLiveCloudData, setIsLiveCloudData] = useState(false);
+  const [hasSchemaError, setHasSchemaError] = useState(false);
+  const [schemaErrorMessage, setSchemaErrorMessage] = useState('');
+  const [user, setUser] = useState(null);
+  const [lastUpdatedTime, setLastUpdatedTime] = useState('Just now');
+
+  // Modals
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // Simulation state for interactive testing
+  const [simMoisture, setSimMoisture] = useState(38.5);
+  const [simRain, setSimRain] = useState(false);
+
+  // Prior pump state ref to calculate hysteresis transitions
+  const prevPumpRef = useRef(telemetry.pump_status === 'ACTIVE');
+
+  // --------------------------------------------------------------------------
+  // 1. Initial Load & Database Health Check
+  // --------------------------------------------------------------------------
   useEffect(() => {
-    document.documentElement.lang = currentLang
-    localStorage.setItem('js_lang', currentLang)
-    checkLanguageVoice(currentLang)
-  }, [currentLang])
-
-  // Detect Kiosk mode (?kiosk=1)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('kiosk') === '1') {
-      setIsKioskMode(true)
-      document.body.classList.add('kiosk-mode')
-    }
-  }, [])
-
-  // Complete session reset for Kiosk privacy
-  const resetKioskSession = (speakNotice = true) => {
-    stopSpeaking()
-    setSessionProfile({})
-    const langObj = LANGUAGES.find((l) => l.code === currentLang) || LANGUAGES[0]
-    setMessages([
-      {
-        sender: 'assistant',
-        text: langObj.greeting,
-        timestamp: new Date().toISOString(),
-        sources: []
+    async function loadInitialData() {
+      if (!isSupabaseConfigured()) {
+        console.log('[Hira Agri] Running in standalone demo mode. Database credentials pending.');
+        return;
       }
-    ])
-    setScreen('welcome')
-    setKioskCountdown(60)
-    if (speakNotice) {
-      const notice = currentLang === 'ta'
-        ? 'கியோஸ்க் அமர்வு மீட்டமைக்கப்பட்டது. நேவிகோவிற்க்கு (NaviGov) வருக.'
-        : (currentLang === 'hi'
-          ? 'कियोस्क सत्र रीसेट हो गया है। नेविगोव (NaviGov) में आपका स्वागत है।'
-          : 'Kiosk session reset. Welcome to NaviGov.')
-      handleSpeak(notice)
-    }
-  }
 
-  // 60-second inactivity auto-reset in Kiosk Mode
-  useEffect(() => {
-    if (!isKioskMode) return
-
-    const resetTimer = () => {
-      setKioskCountdown(60)
-    }
-
-    const events = ['pointerdown', 'keydown', 'touchstart', 'scroll']
-    events.forEach((ev) => window.addEventListener(ev, resetTimer, { passive: true }))
-
-    const interval = setInterval(() => {
-      setKioskCountdown((prev) => {
-        if (prev <= 1) {
-          resetKioskSession(true)
-          return 60
+      // Check user session
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
         }
-        return prev - 1
-      })
-    }, 1000)
+      } catch (err) {
+        console.warn('Auth check skipped:', err);
+      }
+
+      // Fetch latest reading
+      const readingResult = await fetchLatestSensorReading('ESP32-HA-01');
+      if (readingResult.error) {
+        if (isMissingCreatedAtError(readingResult.error)) {
+          setHasSchemaError(true);
+          setSchemaErrorMessage('Database column "sensor_readings.created_at" does not exist.');
+        }
+      } else if (readingResult.data) {
+        setTelemetry(readingResult.data);
+        setIsLiveCloudData(true);
+        setIsCloudConnected(true);
+        prevPumpRef.current = readingResult.data.pump_status === 'ACTIVE';
+      }
+
+      // Fetch events
+      const eventsResult = await fetchPumpEvents('ESP32-HA-01');
+      if (eventsResult.data && eventsResult.data.length > 0) {
+        setPumpEvents(eventsResult.data);
+      }
+
+      // Fetch history
+      const historyResult = await fetchSensorHistory('ESP32-HA-01', 24);
+      if (historyResult.data && historyResult.data.length > 0) {
+        setSensorHistory(historyResult.data);
+      }
+    }
+
+    loadInitialData();
+  }, []);
+
+  // --------------------------------------------------------------------------
+  // 2. Realtime WebSocket Subscription (Supabase Realtime)
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
+    const channel = supabase
+      .channel('hira-agri-live-telemetry')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sensor_readings' },
+        (payload) => {
+          console.log('[Realtime Sensor Reading Received]:', payload.new);
+          setTelemetry(payload.new);
+          setIsLiveCloudData(true);
+          setLastUpdatedTime(new Date().toLocaleTimeString());
+
+          // Append to history
+          setSensorHistory((prev) => [...prev.slice(-49), payload.new]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'pump_events' },
+        (payload) => {
+          console.log('[Realtime Pump Event Received]:', payload.new);
+          setPumpEvents((prev) => [payload.new, ...prev.slice(0, 19)]);
+
+          // Trigger browser notification / alert chip
+          setAlerts((prev) => [
+            {
+              id: payload.new.id || String(Date.now()),
+              alert_type: payload.new.event_type === 'RAIN_OVERRIDE' ? 'RAIN_OVERRIDE' : 'PUMP_ACTIVE',
+              title: payload.new.event_type.replace('_', ' '),
+              message: payload.new.reason,
+              severity: payload.new.event_type === 'RAIN_OVERRIDE' ? 'WARNING' : 'SUCCESS'
+            },
+            ...prev.slice(0, 4)
+          ]);
+        }
+      )
+      .subscribe((status) => {
+        setIsCloudConnected(status === 'SUBSCRIBED');
+      });
 
     return () => {
-      clearInterval(interval)
-      events.forEach((ev) => window.removeEventListener(ev, resetTimer))
-    }
-  }, [isKioskMode, currentLang])
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
-  // Listen for voice loading in browser
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        getAvailableVoices()
-        checkLanguageVoice(currentLang)
-      }
-    }
-  }, [currentLang])
+  // --------------------------------------------------------------------------
+  // 3. Local Evaluation & Simulation Engine (Runs hysteresis & rain override)
+  // --------------------------------------------------------------------------
+  const updateIrrigationSimulation = (newMoisture, newRain) => {
+    const wasActive = prevPumpRef.current;
+    const evalResult = evaluateIrrigationState(newMoisture, newRain, wasActive);
 
-  // Initialize welcome message when entering chat
-  useEffect(() => {
-    if (messages.length === 0) {
-      const langObj = LANGUAGES.find((l) => l.code === currentLang) || LANGUAGES[0]
-      setMessages([
+    const newPumpStatus = evalResult.pumpActive ? 'ACTIVE' : 'INACTIVE';
+    prevPumpRef.current = evalResult.pumpActive;
+
+    const newTelemetry = {
+      ...telemetry,
+      soil_moisture: newMoisture,
+      rain_detected: newRain,
+      pump_status: newPumpStatus,
+      created_at: new Date().toISOString()
+    };
+
+    setTelemetry(newTelemetry);
+    setSimMoisture(newMoisture);
+    setSimRain(newRain);
+    setLastUpdatedTime('Just now');
+
+    // Record pump event on transition
+    if (wasActive !== evalResult.pumpActive) {
+      const eventType = evalResult.isOverride 
+        ? 'RAIN_OVERRIDE' 
+        : evalResult.pumpActive ? 'PUMP_ACTIVATED' : 'PUMP_DEACTIVATED';
+
+      const newEvt = {
+        id: String(Date.now()),
+        event_type: eventType,
+        reason: evalResult.reason,
+        moisture_level: newMoisture,
+        rain_detected: newRain,
+        duration_seconds: evalResult.pumpActive ? 0 : 180,
+        created_at: new Date().toISOString()
+      };
+
+      setPumpEvents((prev) => [newEvt, ...prev]);
+
+      // Push real-time alert
+      setAlerts((prev) => [
         {
-          sender: 'assistant',
-          text: langObj.greeting,
-          timestamp: new Date().toISOString(),
-          sources: []
-        }
-      ])
+          id: String(Date.now()),
+          alert_type: eventType,
+          title: eventType === 'RAIN_OVERRIDE' ? 'Rain Override Engaged' : (evalResult.pumpActive ? 'Pump Activated' : 'Pump Deactivated'),
+          message: evalResult.reason,
+          severity: evalResult.isOverride ? 'WARNING' : (evalResult.pumpActive ? 'SUCCESS' : 'INFO')
+        },
+        ...prev.slice(0, 4)
+      ]);
     }
-  }, [currentLang])
+  };
 
-  // Check if device supports speech synthesis voice for this language
-  const checkLanguageVoice = (langCode) => {
-    const res = checkVoiceAvailability(langCode)
-    if (!res.available && !res.pending) {
-      const langNames = { ta: 'Tamil', hi: 'Hindi', en: 'English' }
-      setVoiceNotice({
-        type: 'info',
-        title: `${langNames[langCode] || langCode} voice not found on device`,
-        message: `Your browser has no installed ${langNames[langCode]} speech voice. Text is displayed normally, and you can add voices in Windows Speech Settings.`
-      })
-    } else if (res.available) {
-      setVoiceNotice((prev) => (prev?.title?.includes('voice not found') ? null : prev))
-    }
-  }
+  const handleMoistureChange = (val) => {
+    updateIrrigationSimulation(val, simRain);
+  };
 
-  // Speak helper
-  const handleSpeak = (text, index = null) => {
-    if (!audioEnabled && !accessibilityMode) return
-    stopSpeaking()
+  const handleRainToggle = () => {
+    updateIrrigationSimulation(simMoisture, !simRain);
+  };
 
-    setCurrentlySpeakingIndex(index)
-    speakText({
-      text,
-      langCode: currentLang,
-      onStart: () => setCurrentlySpeakingIndex(index),
-      onEnd: () => setCurrentlySpeakingIndex(null),
-      onError: (err) => {
-        console.warn('Speech error:', err)
-        setCurrentlySpeakingIndex(null)
-      }
-    })
-  }
+  const handleResetSim = () => {
+    prevPumpRef.current = false;
+    updateIrrigationSimulation(38.5, false);
+  };
 
-  const handleStopSpeaking = () => {
-    stopSpeaking()
-    setCurrentlySpeakingIndex(null)
-  }
-
-  const handleToggleAccessibility = () => {
-    setAccessibilityMode((prev) => !prev)
-  }
-
-  const handleToggleAudio = () => {
-    setAudioEnabled((prev) => {
-      const next = !prev
-      localStorage.setItem('js_audio', next)
-      if (!next) {
-        handleStopSpeaking()
-      }
-      return next
-    })
-  }
-
-  const handleLanguageChange = (newLang) => {
-    setCurrentLang(newLang)
-    handleStopSpeaking()
-    const langObj = LANGUAGES.find((l) => l.code === newLang)
-    if (langObj && (audioEnabled || accessibilityMode)) {
-      handleSpeak(langObj.greeting)
-    }
-  }
-
-  const handleContinueFromWelcome = () => {
-    setScreen('chat')
-    localStorage.setItem('js_screen', 'chat')
-    const langObj = LANGUAGES.find((l) => l.code === currentLang) || LANGUAGES[0]
-    if (audioEnabled || accessibilityMode) {
-      handleSpeak(langObj.greeting, 0)
-    }
-  }
-
-  const handleResetWelcome = () => {
-    handleStopSpeaking()
-    setScreen('welcome')
-    localStorage.setItem('js_screen', 'welcome')
-  }
-
-  const handleSendMessage = async (text) => {
-    if (!text.trim()) return
-    handleStopSpeaking()
-
-    const userMsg = {
-      sender: 'user',
-      text: text.trim(),
-      timestamp: new Date().toISOString()
-    }
-
-    setMessages((prev) => [...prev, userMsg])
-    setIsLoading(true)
-
-    // Cold start notification timer for free tier hosting (Render sleeps after 15 min idle)
-    const coldStartTimer = setTimeout(() => {
-      const coldStartNotice = currentLang === 'ta'
-        ? 'இலவச மேகக்கணி சேவையகம் (Cloud Server) விழித்தெழுகிறது (சுமார் 30 வினாடிகள் ஆகலாம்). தயவுசெய்து காத்திருக்கவும்...'
-        : (currentLang === 'hi'
-          ? 'मुफ्त क्लाउड सर्वर चालू हो रहा है (पहली बार में 30-40 सेकंड लग सकते हैं)। कृपया प्रतीक्षा करें...'
-          : 'Cloud server is waking up from idle sleep (first request may take 30-40 seconds). Thank you for your patience...')
-
-      setVoiceNotice({
-        type: 'info',
-        title: 'Cloud Server Waking Up',
-        message: coldStartNotice
-      })
-    }, 3500)
-
-    try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || ''
-      const response = await fetch(`${apiBase}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text.trim(),
-          language: currentLang,
-          profile: sessionProfile
-        })
-      })
-
-      clearTimeout(coldStartTimer)
-      setVoiceNotice((prev) => (prev?.title === 'Cloud Server Waking Up' ? null : prev))
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-
-      const assistantMsg = {
-        sender: 'assistant',
-        text: data.reply,
-        sources: data.sources || [],
-        timestamp: new Date().toISOString()
-      }
-
-      setMessages((prev) => {
-        const updated = [...prev, assistantMsg]
-        if (audioEnabled || accessibilityMode) {
-          handleSpeak(data.reply, updated.length - 1)
-        }
-        return updated
-      })
-
-      if (data.updated_profile) {
-        setSessionProfile((prev) => ({ ...prev, ...data.updated_profile }))
-      }
-
-    } catch (err) {
-      console.error('Chat API Error:', err)
-      const errorMsg = {
-        sender: 'assistant',
-        text: t.errorNotice,
-        timestamp: new Date().toISOString()
-      }
-      setMessages((prev) => [...prev, errorMsg])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Quick Action Switcher: Routes to dedicated interactive screens
-  const handleQuickAction = (action) => {
-    handleStopSpeaking()
-
-    if (action === 'scholarships') {
-      setScreen('scholarship_finder')
-      return
-    }
-
-    if (action === 'certificates') {
-      setServicesDefaultTab('certificates')
-      setScreen('services_guide')
-      return
-    }
-
-    if (action === 'pensions') {
-      setServicesDefaultTab('pensions')
-      setScreen('services_guide')
-      return
-    }
-
-    if (action === 'scan') {
-      setScreen('scan')
-      return
-    }
-
-    if (action === 'helpline') {
-      setScreen('helpline')
-      return
-    }
-
-    const quickQueries = {
-      scan: {
-        ta: 'எனது ஆவணத்தை ஸ்கேன் செய்து விவரங்களை சரிபார்க்க விரும்புகிறேன்.',
-        hi: 'मैं अपने दस्तावेज़ को स्कैन करके विवरण जांचना चाहता हूँ।',
-        en: 'I want to scan my document to extract details.'
+  const handleSimulateError = () => {
+    prevPumpRef.current = false;
+    setTelemetry({
+      ...telemetry,
+      soil_moisture: 0,
+      temperature: 0,
+      humidity: 0,
+      pump_status: 'INACTIVE',
+      created_at: new Date().toISOString()
+    });
+    setAlerts((prev) => [
+      {
+        id: String(Date.now()),
+        alert_type: 'DEVICE_OFFLINE',
+        title: 'Failsafe Engaged',
+        message: 'Sensor disconnected or ADC error. Pump safely shut down.',
+        severity: 'CRITICAL'
       },
-      helpline: {
-        ta: 'அரசு உதவி எண் மற்றும் இ-சேவை மைய விவரங்கள் தேவை.',
-        hi: 'सरकारी हेल्पलाइन और सीएससी केंद्र की जानकारी चाहिए।',
-        en: 'I need official helpline numbers and Common Service Centre locator.'
-      }
-    }
+      ...prev
+    ]);
+  };
 
-    const query = quickQueries[action]?.[currentLang] || quickQueries[action]?.en
-    if (query) {
-      handleSendMessage(query)
-    }
-  }
-
-  // Toggle Microphone with Speech-to-Text
-  const handleToggleMic = () => {
-    if (isListening) {
-      activeRecognizerRef.current?.stop()
-      setIsListening(false)
-      setInterimTranscript('')
-      return
-    }
-
-    handleStopSpeaking()
-
-    const recognizer = createSpeechRecognizer({
-      langCode: currentLang,
-      onStart: () => {
-        setIsListening(true)
-        setInterimTranscript('')
-      },
-      onInterim: (text) => {
-        setInterimTranscript(text)
-      },
-      onFinal: (text) => {
-        setIsListening(false)
-        setInterimTranscript('')
-        if (text) {
-          handleSendMessage(text)
-        }
-      },
-      onError: (err) => {
-        setIsListening(false)
-        setInterimTranscript('')
-        setVoiceNotice({
-          type: 'error',
-          title: 'Microphone Notice',
-          message: err.message
-        })
-      },
-      onEnd: () => {
-        setIsListening(false)
-        setInterimTranscript('')
-      }
-    })
-
-    if (recognizer) {
-      activeRecognizerRef.current = recognizer
-      try {
-        recognizer.start()
-      } catch (e) {
-        console.warn('Recognition start error:', e)
-        setIsListening(false)
-      }
-    }
-  }
+  const handleDismissAlert = (id) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+  };
 
   return (
     <div className="app-container">
-      {isKioskMode && (
-        <KioskBar
-          countdown={kioskCountdown}
-          onManualReset={() => resetKioskSession(true)}
-          currentLang={currentLang}
-        />
-      )}
-
-      <Header
-        currentLang={currentLang}
-        onChangeLanguage={handleLanguageChange}
-        accessibilityMode={accessibilityMode}
-        onToggleAccessibility={handleToggleAccessibility}
-        audioEnabled={audioEnabled}
-        onToggleAudio={handleToggleAudio}
-        onResetWelcome={handleResetWelcome}
+      {/* Header */}
+      <Header 
+        isConnected={isCloudConnected}
+        user={user}
+        onOpenAuth={() => setShowAuthModal(true)}
+        onOpenDiagnostics={() => setShowDiagnostics(true)}
+        onOpenHelp={() => setShowHelpModal(true)}
+        hasSchemaError={hasSchemaError}
       />
 
-      <VoiceNotice
-        notice={voiceNotice}
-        onDismiss={() => setVoiceNotice(null)}
+      {/* Database Schema Fix Banner if error detected */}
+      {hasSchemaError && (
+        <div className="diagnostics-banner">
+          <div>
+            <strong style={{ fontSize: '0.92rem' }}>
+              Database Schema Issue Detected:
+            </strong>
+            <p style={{ fontSize: '0.84rem', marginTop: '2px' }}>
+              {schemaErrorMessage} — Your sensor readings table is missing the <code>created_at</code> timestamp column.
+            </p>
+          </div>
+          <button 
+            onClick={() => setShowDiagnostics(true)}
+            className="btn-primary" 
+            style={{ 
+              backgroundColor: '#B45309', 
+              padding: '6px 14px', 
+              fontSize: '0.78rem',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Apply 1-Click Fix
+          </button>
+        </div>
+      )}
+
+      {/* Interactive IoT Simulation Toolbar */}
+      <SimulationControls 
+        soilMoisture={simMoisture}
+        rainDetected={simRain}
+        pumpStatus={telemetry.pump_status}
+        onMoistureChange={handleMoistureChange}
+        onRainToggle={handleRainToggle}
+        onResetSim={handleResetSim}
+        onSimulateError={handleSimulateError}
+        isLiveCloudData={isLiveCloudData}
       />
 
-      {screen === 'welcome' && (
-        <WelcomeScreen
-          selectedLang={currentLang}
-          onSelectLanguage={setCurrentLang}
-          onContinue={handleContinueFromWelcome}
-          onSpeakGreeting={(txt) => handleSpeak(txt)}
+      {/* Alerts Drawer */}
+      <AlertsDrawer alerts={alerts} onDismiss={handleDismissAlert} />
+
+      {/* Farmer Welcome Section */}
+      <WelcomeBanner 
+        telemetry={telemetry}
+        deviceName={telemetry.device_id || 'ESP32-HA-01'}
+        fieldLocation="Sector A - Main Orchard"
+      />
+
+      {/* Core 6 Status Cards */}
+      <StatusCards 
+        telemetry={telemetry}
+        isLoading={false}
+        isUnconfigured={!isSupabaseConfigured()}
+        isError={hasSchemaError}
+        hasRainOverride={Boolean(telemetry.rain_detected)}
+        lastUpdated={lastUpdatedTime}
+      />
+
+      {/* Multi-column Analytical Row 1: Charts & Premium Soil Analysis */}
+      <div className="sections-split">
+        <SensorCharts history={sensorHistory} />
+        <SoilAnalysis telemetry={telemetry} />
+      </div>
+
+      {/* Multi-column Analytical Row 2: Pump Events & ESP32 Device Manager */}
+      <div className="sections-split">
+        <PumpEvents events={pumpEvents} />
+        <DeviceManager 
+          devices={devices} 
+          onAddDevice={(dev) => setDevices((prev) => [...prev, dev])} 
+        />
+      </div>
+
+      {/* Modals */}
+      {showAuthModal && (
+        <AuthModal 
+          user={user} 
+          onClose={() => setShowAuthModal(false)} 
+          onAuthChange={(u) => setUser(u)} 
         />
       )}
 
-      {screen === 'chat' && (
-        <ChatScreen
-          currentLang={currentLang}
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          onQuickAction={handleQuickAction}
-          onReadAloud={(txt, idx) => handleSpeak(txt, idx)}
-          onStopSpeaking={handleStopSpeaking}
-          currentlySpeakingIndex={currentlySpeakingIndex}
-          isListening={isListening}
-          interimTranscript={interimTranscript}
-          onToggleMic={handleToggleMic}
-          isLoading={isLoading}
+      {showDiagnostics && (
+        <DatabaseDiagnostics 
+          onClose={() => setShowDiagnostics(false)} 
+          onRetest={() => setHasSchemaError(false)} 
         />
       )}
 
-      {screen === 'scholarship_finder' && (
-        <ScholarshipFinder
-          currentLang={currentLang}
-          onBackToChat={() => setScreen('chat')}
-          onReadAloud={(txt) => handleSpeak(txt)}
-          onStopSpeaking={handleStopSpeaking}
-          audioEnabled={audioEnabled || accessibilityMode}
+      {showHelpModal && (
+        <HardwareHelpModal 
+          onClose={() => setShowHelpModal(false)} 
         />
       )}
-
-      {screen === 'services_guide' && (
-        <ServicesGuide
-          defaultTab={servicesDefaultTab}
-          currentLang={currentLang}
-          onBackToChat={() => setScreen('chat')}
-          onReadAloud={(txt) => handleSpeak(txt)}
-        />
-      )}
-
-      {screen === 'scan' && (
-        <ScanScreen
-          currentLang={currentLang}
-          onBackToChat={() => setScreen('chat')}
-          onProfileUpdated={(updates) => {
-            setSessionProfile((prev) => ({ ...prev, ...updates }))
-          }}
-          onReadAloud={(txt) => handleSpeak(txt)}
-        />
-      )}
-
-      {screen === 'helpline' && (
-        <HelplineScreen
-          currentLang={currentLang}
-          onBackToChat={() => setScreen('chat')}
-          onReadAloud={(txt) => handleSpeak(txt)}
-        />
-      )}
-
-      <Footer currentLang={currentLang} />
     </div>
-  )
+  );
 }
