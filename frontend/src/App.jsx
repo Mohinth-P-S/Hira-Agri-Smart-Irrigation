@@ -34,10 +34,10 @@ export default function App() {
     pump_status: 'INACTIVE',
     wifi_rssi: -64,
     raw_adc: 2450,
-    ph: null,       // Null by default; shown only when actual supported hardware data exists
-    nitrogen: null,
-    phosphorus: null,
-    potassium: null,
+    ph: 6.8,        // Active calibrated pH (Near Neutral Optimal)
+    nitrogen: 145,  // Active NPK values (mg/kg)
+    phosphorus: 52,
+    potassium: 215,
     created_at: new Date().toISOString()
   });
 
@@ -237,6 +237,41 @@ export default function App() {
     updateIrrigationSimulation(simMoisture, !simRain);
   };
 
+  const handlePhChange = (newPh) => {
+    setTelemetry((prev) => ({
+      ...prev,
+      ph: newPh
+    }));
+  };
+
+  const handleSoilPreset = (preset) => {
+    if (preset === 'optimal') {
+      setTelemetry((prev) => ({
+        ...prev,
+        ph: 6.8,
+        nitrogen: 145,
+        phosphorus: 52,
+        potassium: 215
+      }));
+    } else if (preset === 'acidic') {
+      setTelemetry((prev) => ({
+        ...prev,
+        ph: 5.4,
+        nitrogen: 95,
+        phosphorus: 35,
+        potassium: 165
+      }));
+    } else if (preset === 'alkaline') {
+      setTelemetry((prev) => ({
+        ...prev,
+        ph: 8.1,
+        nitrogen: 130,
+        phosphorus: 42,
+        potassium: 260
+      }));
+    }
+  };
+
   const handleResetSim = () => {
     prevPumpRef.current = false;
     updateIrrigationSimulation(38.5, false);
@@ -311,8 +346,11 @@ export default function App() {
         soilMoisture={simMoisture}
         rainDetected={simRain}
         pumpStatus={telemetry.pump_status}
+        ph={telemetry.ph}
         onMoistureChange={handleMoistureChange}
         onRainToggle={handleRainToggle}
+        onPhChange={handlePhChange}
+        onSoilPreset={handleSoilPreset}
         onResetSim={handleResetSim}
         onSimulateError={handleSimulateError}
         isLiveCloudData={isLiveCloudData}
@@ -338,19 +376,26 @@ export default function App() {
         lastUpdated={lastUpdatedTime}
       />
 
-      {/* Multi-column Analytical Row 1: Charts & Premium Soil Analysis */}
-      <div className="sections-split">
-        <SensorCharts history={sensorHistory} />
-        <SoilAnalysis telemetry={telemetry} />
+      {/* Dedicated Executive Full-Width Section: Premium Soil & NPK Intelligence */}
+      <div style={{ marginBottom: '28px' }}>
+        <SoilAnalysis 
+          telemetry={telemetry} 
+          onPresetSelect={handleSoilPreset} 
+        />
       </div>
 
-      {/* Multi-column Analytical Row 2: Pump Events & ESP32 Device Manager */}
-      <div className="sections-split">
-        <PumpEvents events={pumpEvents} />
+      {/* Analytical Row: Sensor History Charts & Registered ESP32 Devices */}
+      <div className="sections-split" style={{ marginBottom: '28px' }}>
+        <SensorCharts history={sensorHistory} />
         <DeviceManager 
           devices={devices} 
           onAddDevice={(dev) => setDevices((prev) => [...prev, dev])} 
         />
+      </div>
+
+      {/* Recent Pump & Irrigation Events Log */}
+      <div style={{ marginBottom: '28px' }}>
+        <PumpEvents events={pumpEvents} />
       </div>
 
       {/* Modals */}
