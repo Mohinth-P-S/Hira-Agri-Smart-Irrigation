@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     full_name TEXT,
     farm_name TEXT DEFAULT 'Hira Green Farm',
     phone TEXT,
-    plan TEXT NOT NULL DEFAULT 'Farmer Pro',
+    plan TEXT NOT NULL DEFAULT 'Standard',
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );

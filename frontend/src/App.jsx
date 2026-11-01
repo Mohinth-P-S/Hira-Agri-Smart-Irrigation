@@ -66,6 +66,15 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Access Control: Standard / Free by default; No free premium access for anyone!
+  const [isPremiumPlan, setIsPremiumPlan] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('hira_pro_unlocked') === 'true';
+    }
+    return false;
+  });
 
   // Simulation state for interactive testing
   const [simMoisture, setSimMoisture] = useState(38.5);
@@ -346,11 +355,11 @@ export default function App() {
         soilMoisture={simMoisture}
         rainDetected={simRain}
         pumpStatus={telemetry.pump_status}
-        ph={telemetry.ph}
+        ph={isPremiumPlan ? telemetry.ph : undefined}
         onMoistureChange={handleMoistureChange}
         onRainToggle={handleRainToggle}
-        onPhChange={handlePhChange}
-        onSoilPreset={handleSoilPreset}
+        onPhChange={isPremiumPlan ? handlePhChange : undefined}
+        onSoilPreset={isPremiumPlan ? handleSoilPreset : undefined}
         onResetSim={handleResetSim}
         onSimulateError={handleSimulateError}
         isLiveCloudData={isLiveCloudData}
@@ -374,13 +383,22 @@ export default function App() {
         isError={hasSchemaError}
         hasRainOverride={Boolean(telemetry.rain_detected)}
         lastUpdated={lastUpdatedTime}
+        isPremium={isPremiumPlan}
+        onOpenUpgrade={() => setShowUpgradeModal(true)}
       />
 
       {/* Dedicated Executive Full-Width Section: Premium Soil & NPK Intelligence */}
       <div style={{ marginBottom: '28px' }}>
         <SoilAnalysis 
           telemetry={telemetry} 
-          onPresetSelect={handleSoilPreset} 
+          onPresetSelect={handleSoilPreset}
+          isPremium={isPremiumPlan}
+          onUnlockPremium={() => {
+            setIsPremiumPlan(true);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('hira_pro_unlocked', 'true');
+            }
+          }}
         />
       </div>
 
@@ -397,6 +415,74 @@ export default function App() {
       <div style={{ marginBottom: '28px' }}>
         <PumpEvents events={pumpEvents} />
       </div>
+
+      {/* Pro License & Upgrade Modal */}
+      {showUpgradeModal && (
+        <div className="modal-overlay" onClick={() => setShowUpgradeModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: '1.25rem', color: 'var(--green-dark)', marginBottom: '8px' }}>
+              Hira Agri Pro License Management
+            </h3>
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: '18px' }}>
+              Standard tier provides free soil moisture, temperature, humidity, rain detection, and local autonomous irrigation. Precision Soil Chemistry (pH &amp; NPK) is protected by Pro hardware licensing.
+            </p>
+
+            {isPremiumPlan ? (
+              <div style={{
+                background: '#DCFCE7',
+                border: '1px solid #86EFAC',
+                color: '#166534',
+                padding: '14px',
+                borderRadius: 'var(--radius-inner)',
+                marginBottom: '18px',
+                fontSize: '0.84rem'
+              }}>
+                <strong>✓ Pro License Active</strong>
+                <p style={{ marginTop: '4px', fontSize: '0.78rem' }}>
+                  Your session currently has full access to the Precision Soil Lab and NPK telemetry.
+                </p>
+                <button 
+                  onClick={() => {
+                    setIsPremiumPlan(false);
+                    localStorage.removeItem('hira_pro_unlocked');
+                    setShowUpgradeModal(false);
+                  }}
+                  className="btn-secondary"
+                  style={{ marginTop: '10px', color: '#DC2626', borderColor: '#FCA5A5', padding: '6px 12px', fontSize: '0.76rem' }}
+                >
+                  Relock to Standard (Free) Tier
+                </button>
+              </div>
+            ) : (
+              <div style={{
+                background: 'var(--bg-surface-soft)',
+                padding: '16px',
+                borderRadius: 'var(--radius-inner)',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '20px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Standard Edition</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--green-primary)' }}>Free Forever</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Precision Soil Pro (pH + NPK)</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400E' }}>License Protected</span>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  To activate, enter your authorized License Key in the Soil Lab card below or contact farm sales.
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => setShowUpgradeModal(false)} className="btn-secondary">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {showAuthModal && (

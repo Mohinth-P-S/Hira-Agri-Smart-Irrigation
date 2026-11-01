@@ -9,11 +9,22 @@ import {
   CheckCircle2, 
   Info,
   Layers,
-  Leaf
+  Leaf,
+  Lock,
+  Key,
+  AlertTriangle
 } from 'lucide-react';
 
-export default function SoilAnalysis({ telemetry, onPresetSelect }) {
+export default function SoilAnalysis({ 
+  telemetry, 
+  onPresetSelect,
+  isPremium = false,
+  onUnlockPremium
+}) {
   const [downloadMsg, setDownloadMsg] = useState(false);
+  const [licenseInput, setLicenseInput] = useState('');
+  const [licenseError, setLicenseError] = useState(false);
+  const [licenseSuccess, setLicenseSuccess] = useState(false);
 
   // Safe extract with premium defaults
   const ph = telemetry?.ph !== undefined && telemetry?.ph !== null ? Number(telemetry.ph) : 6.8;
@@ -24,19 +35,15 @@ export default function SoilAnalysis({ telemetry, onPresetSelect }) {
   // Calculate Soil Vitality Index (0 - 100)
   const calcVitalityScore = () => {
     let score = 100;
-    // pH deviation penalty from ideal 6.8
     const phDev = Math.abs(ph - 6.8);
     score -= phDev * 12;
 
-    // Nitrogen check (target: 120-160)
     if (n < 120) score -= (120 - n) * 0.2;
     if (n > 180) score -= (n - 180) * 0.15;
 
-    // Phosphorus check (target: 35-65)
     if (p < 35) score -= (35 - p) * 0.4;
     if (p > 75) score -= (p - 75) * 0.3;
 
-    // Potassium check (target: 180-250)
     if (k < 180) score -= (180 - k) * 0.15;
     if (k > 280) score -= (k - 280) * 0.15;
 
@@ -55,8 +62,6 @@ export default function SoilAnalysis({ telemetry, onPresetSelect }) {
   };
 
   const phStatus = getPhClass(ph);
-
-  // Position on pH rainbow track (scale 3.0 to 10.0 -> 0% to 100%)
   const phPercent = Math.min(Math.max(((ph - 3.0) / (10.0 - 3.0)) * 100, 0), 100);
 
   const handleExportReport = () => {
@@ -87,6 +92,163 @@ Certified by Hira Agri Precision Agronomy Suite`;
     setTimeout(() => setDownloadMsg(false), 3000);
   };
 
+  const handleActivateLicense = (e) => {
+    e.preventDefault();
+    const cleanKey = licenseInput.trim().toUpperCase();
+    // Valid license keys
+    if (cleanKey === 'HIRA-PRO-2026' || cleanKey === 'HIRA-OWNER-KEY' || cleanKey === 'MOHINTH-PRO') {
+      setLicenseSuccess(true);
+      setLicenseError(false);
+      setTimeout(() => {
+        if (onUnlockPremium) onUnlockPremium();
+      }, 600);
+    } else {
+      setLicenseError(true);
+      setLicenseSuccess(false);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // GATED VIEW WHEN USER DOES NOT HAVE PREMIUM ACCESS (Default for everyone)
+  // --------------------------------------------------------------------------
+  if (!isPremium) {
+    return (
+      <div className="premium-soil-card" style={{ borderColor: '#E2DDD0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="badge-premium-gold" style={{ background: '#F1F5F9', color: 'var(--text-secondary)', borderColor: '#CBD5E1' }}>
+              <Lock size={13} color="var(--text-muted)" />
+              PRO FEATURE
+            </span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              Precision Agronomy Suite
+            </span>
+          </div>
+
+          <span style={{
+            background: '#FEE2E2',
+            color: '#991B1B',
+            fontSize: '0.72rem',
+            fontWeight: 700,
+            padding: '3px 10px',
+            borderRadius: '9999px',
+            border: '1px solid #FCA5A5'
+          }}>
+            ACCESS RESTRICTED
+          </span>
+        </div>
+
+        {/* Lock Banner & Feature Description */}
+        <div style={{
+          background: '#FFFFFF',
+          border: '1px solid var(--border-card)',
+          borderRadius: 'var(--radius-inner)',
+          padding: '28px 24px',
+          textAlign: 'center',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.03)'
+        }}>
+          <div style={{
+            width: '54px',
+            height: '54px',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '14px',
+            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.2)'
+          }}>
+            <Lock size={26} color="#92400E" />
+          </div>
+
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--green-dark)', marginBottom: '8px' }}>
+            Precision Soil Chemistry &amp; NPK Lab Locked
+          </h3>
+          <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', maxWidth: '580px', margin: '0 auto 20px', lineHeight: '1.5' }}>
+            Live soil pH spectrum mapping, NPK macronutrient spectrometry (Nitrogen, Phosphorus, Potassium), and AI Crop Compatibility recommendations are reserved for authorized license holders.
+          </p>
+
+          {/* Standard Free Inclusion reminder */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'var(--green-light)',
+            padding: '6px 14px',
+            borderRadius: 'var(--radius-chip)',
+            fontSize: '0.78rem',
+            color: 'var(--green-primary)',
+            fontWeight: 600,
+            marginBottom: '24px'
+          }}>
+            <CheckCircle2 size={15} />
+            <span>Standard features (Moisture, Temp, Humidity, Rain &amp; Autonomous Irrigation) remain 100% active.</span>
+          </div>
+
+          {/* Authorized License Key Activation Form */}
+          <div style={{
+            maxWidth: '460px',
+            margin: '0 auto',
+            background: 'var(--bg-surface-soft)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-inner)',
+            padding: '16px 20px',
+            textAlign: 'left'
+          }}>
+            <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--green-dark)', marginBottom: '8px' }}>
+              <Key size={13} style={{ display: 'inline', marginRight: '5px' }} />
+              Authorized Pro License Key Activation:
+            </label>
+
+            <form onSubmit={handleActivateLicense} style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                type="text" 
+                value={licenseInput}
+                onChange={(e) => { setLicenseInput(e.target.value); setLicenseError(false); }}
+                placeholder="Enter Pro License Key"
+                style={{
+                  flex: 1,
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: licenseError ? '1px solid #DC2626' : '1px solid var(--border-card)',
+                  fontSize: '0.82rem',
+                  fontFamily: 'Consolas, monospace'
+                }}
+              />
+              <button 
+                type="submit" 
+                className="btn-primary"
+                style={{ padding: '9px 16px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+              >
+                Verify &amp; Unlock
+              </button>
+            </form>
+
+            {licenseError && (
+              <p style={{ fontSize: '0.74rem', color: '#DC2626', marginTop: '8px', fontWeight: 600 }}>
+                ✗ Invalid license key. Premium access is restricted to verified subscribers.
+              </p>
+            )}
+
+            {licenseSuccess && (
+              <p style={{ fontSize: '0.74rem', color: 'var(--green-primary)', marginTop: '8px', fontWeight: 600 }}>
+                ✓ License verified! Unlocking Precision Soil Lab...
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="threshold-rule-box" style={{ marginTop: '16px' }}>
+          <ShieldCheck size={14} color="var(--text-muted)" />
+          <span>Access Control Policy: <strong>Default Standard Plan • Zero Public Premium Access</strong></span>
+        </div>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // UNLOCKED VIEW (Rendered ONLY when isPremium is explicitly TRUE)
+  // --------------------------------------------------------------------------
   return (
     <div className="premium-soil-card">
       {/* Premium Header */}

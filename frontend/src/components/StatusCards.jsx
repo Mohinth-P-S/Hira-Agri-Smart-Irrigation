@@ -19,7 +19,9 @@ export default function StatusCards({
   isUnconfigured, 
   isError,
   hasRainOverride,
-  lastUpdated
+  lastUpdated,
+  isPremium = false,
+  onOpenUpgrade
 }) {
   const moisture = telemetry?.soil_moisture !== undefined ? Number(telemetry.soil_moisture) : null;
   const temp = telemetry?.temperature !== undefined ? Number(telemetry.temperature) : null;
@@ -246,40 +248,67 @@ export default function StatusCards({
         <div>
           <div className="card-top">
             <div className="card-label-group">
-              <div className="card-icon" style={{ backgroundColor: 'var(--green-light)', color: 'var(--green-dark)' }}>
+              <div className="card-icon" style={{ 
+                backgroundColor: isPremium ? 'var(--green-light)' : '#F1F5F9', 
+                color: isPremium ? 'var(--green-dark)' : 'var(--text-secondary)' 
+              }}>
                 <CreditCard size={20} />
               </div>
               <span className="card-title">Account Plan</span>
             </div>
-            <span className="card-badge" style={{ backgroundColor: 'var(--green-dark)', color: '#FFFFFF' }}>
-              FARMER PRO
+            <span className="card-badge" style={{ 
+              backgroundColor: isPremium ? 'var(--green-dark)' : 'var(--bg-cream-alt)', 
+              color: isPremium ? '#FFFFFF' : 'var(--text-secondary)',
+              border: '1px solid var(--border-card)'
+            }}>
+              {isPremium ? 'FARMER PRO' : 'STANDARD PLAN'}
             </span>
           </div>
 
           <div className="card-value-hero">
-            Active
-            <span className="card-unit">Subscription</span>
+            {isPremium ? 'Active Pro' : 'Free Tier'}
+            <span className="card-unit">{isPremium ? 'License' : 'Basic'}</span>
           </div>
 
           <div style={{ marginTop: '14px', fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Registered Controllers:</span>
-              <strong>1 / 5 Nodes</strong>
+              <strong>{isPremium ? '5 / 5 Nodes' : '1 ESP32 Node'}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Historical Analytics:</span>
-              <strong>90 Days Cloud Retention</strong>
+              <strong>{isPremium ? '90 Days Cloud Retention' : '24h Basic History'}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Sync Protocol:</span>
-              <strong>Realtime WebSockets</strong>
+              <span>Soil &amp; NPK Lab:</span>
+              <strong style={{ color: isPremium ? 'var(--green-primary)' : '#DC2626' }}>
+                {isPremium ? '✓ Unlocked' : '🔒 Locked (Pro Only)'}
+              </strong>
             </div>
           </div>
         </div>
 
-        <div className="threshold-rule-box">
-          <Clock size={14} color="var(--green-primary)" />
-          <span>Last sync: <strong>{lastUpdated || 'Live'}</strong></span>
+        <div className="threshold-rule-box" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Clock size={14} color="var(--green-primary)" />
+            <span>Sync: <strong>{lastUpdated || 'Live'}</strong></span>
+          </div>
+          {!isPremium && onOpenUpgrade && (
+            <button 
+              onClick={onOpenUpgrade}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--green-primary)',
+                fontWeight: 700,
+                fontSize: '0.74rem',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Unlock Pro
+            </button>
+          )}
         </div>
       </div>
     </div>
