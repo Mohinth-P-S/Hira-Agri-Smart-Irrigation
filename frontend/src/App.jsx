@@ -11,6 +11,7 @@ import SimulationControls from './components/SimulationControls';
 import DatabaseDiagnostics from './components/DatabaseDiagnostics';
 import AuthModal from './components/AuthModal';
 import HardwareHelpModal from './components/HardwareHelpModal';
+import Footer from './components/Footer';
 
 import { 
   supabase, 
@@ -415,6 +416,9 @@ export default function App() {
       <div style={{ marginBottom: '28px' }}>
         <PumpEvents events={pumpEvents} />
       </div>
+
+      {/* Footer & Developer Credits */}
+      <Footer />
 
       {/* Pro License & Upgrade Modal */}
       {showUpgradeModal && (
