@@ -19,12 +19,12 @@ const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 // Use your Supabase project URL and Edge Function path.
 // Device authentication uses an IoT pre-shared token, NEVER the admin service key!
 // ----------------------------------------------------------------------------
-const char* SUPABASE_FUNCTION_URL = "https://YOUR_SUPABASE_PROJECT_REF.functions.supabase.co/ingest-sensor-data";
+const char* SUPABASE_FUNCTION_URL = "https://jimukquqotecswdozteq.supabase.co/rest/v1/sensor_readings";
 const char* DEVICE_ID             = "ESP32-HA-01";
 const char* DEVICE_TOKEN          = "hira_agri_esp32_secret_token_2026";
 
-// Optional: Supabase Anon Key (for public client gateway)
-const char* SUPABASE_ANON_KEY     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+// Supabase Anon Key for direct REST API ingestion
+const char* SUPABASE_ANON_KEY     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImppbXVrcXVxb3RlY3N3ZG96dGVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDY0MzAsImV4cCI6MjEwOTEyMjQzMH0.o8C63cn52dW_0NrqW2lQHqTpj752qQ8YVk6rUUnBQFg";
 
 // ----------------------------------------------------------------------------
 // 3. TELEMETRY & REPORTING INTERVALS (in milliseconds)

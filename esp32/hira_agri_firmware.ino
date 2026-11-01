@@ -226,6 +226,7 @@ void sendTelemetryToSupabase() {
   }
 
   https.addHeader("Content-Type", "application/json");
+  https.addHeader("Prefer", "return=minimal");
   https.addHeader("x-device-id", DEVICE_ID);
   https.addHeader("x-device-token", DEVICE_TOKEN);
   if (strlen(SUPABASE_ANON_KEY) > 0) {
