@@ -137,6 +137,24 @@ export default function App() {
   }, []);
 
   // --------------------------------------------------------------------------
+  // 1.5 Active Real-Time Polling Fallback (Refreshes telemetry every 3 seconds)
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
+    const pollInterval = setInterval(async () => {
+      const readingResult = await fetchLatestSensorReading('ESP32-HA-01');
+      if (readingResult.data) {
+        setTelemetry(readingResult.data);
+        setIsLiveCloudData(true);
+        setLastUpdatedTime(new Date().toLocaleTimeString());
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, []);
+
+  // --------------------------------------------------------------------------
   // 2. Realtime WebSocket Subscription (Supabase Realtime)
   // --------------------------------------------------------------------------
   useEffect(() => {

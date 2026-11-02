@@ -229,8 +229,10 @@ void logPumpEvent(String eventType, String reason) {
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setHandshakeTimeout(15);
 
   HTTPClient http;
+  http.setReuse(false);
   String endpoint = String(SUPABASE_URL) + EVENTS_ENDPOINT;
 
   if (http.begin(client, endpoint)) {
@@ -252,6 +254,7 @@ void logPumpEvent(String eventType, String reason) {
 
     http.POST(payload);
     http.end();
+    client.stop();
   }
 }
 
@@ -266,8 +269,10 @@ void uploadSensorData() {
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setHandshakeTimeout(15);
 
   HTTPClient http;
+  http.setReuse(false);
   String endpoint = String(SUPABASE_URL) + SENSOR_ENDPOINT;
 
   if (!http.begin(client, endpoint)) {
@@ -306,6 +311,7 @@ void uploadSensorData() {
   }
 
   http.end();
+  client.stop();
 }
 
 // ---------------- LOCAL WEB DASHBOARD (PORT 80) ----------------
