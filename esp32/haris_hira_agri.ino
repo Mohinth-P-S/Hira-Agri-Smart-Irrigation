@@ -314,8 +314,19 @@ String makeStatusJson() {
   JsonDocument doc;
   doc["device"] = "Hira Agri";
   doc["sensor_healthy"] = sensorHealthy;
-  doc["temperature_c"] = isnan(temperatureC) ? nullptr : temperatureC;
-  doc["humidity_percent"] = isnan(humidityPercent) ? nullptr : humidityPercent;
+
+  if (!isnan(temperatureC)) {
+    doc["temperature_c"] = temperatureC;
+  } else {
+    doc["temperature_c"] = nullptr;
+  }
+
+  if (!isnan(humidityPercent)) {
+    doc["humidity_percent"] = humidityPercent;
+  } else {
+    doc["humidity_percent"] = nullptr;
+  }
+
   doc["soil_raw"] = soilRaw;
   doc["soil_moisture"] = soilMoisture;
   doc["rain_raw"] = rainRaw;
