@@ -7,7 +7,6 @@ import DeviceManager from './components/DeviceManager';
 import SoilAnalysis from './components/SoilAnalysis';
 import PumpEvents from './components/PumpEvents';
 import AlertsDrawer from './components/AlertsDrawer';
-import SimulationControls from './components/SimulationControls';
 import DatabaseDiagnostics from './components/DatabaseDiagnostics';
 import AuthModal from './components/AuthModal';
 import HardwareHelpModal from './components/HardwareHelpModal';
@@ -433,21 +432,6 @@ export default function App() {
           </button>
         </div>
       )}
-
-      {/* Interactive IoT Simulation Toolbar */}
-      <SimulationControls 
-        soilMoisture={simMoisture}
-        rainDetected={simRain}
-        pumpStatus={telemetry.pump_status}
-        ph={isPremiumPlan ? telemetry.ph : undefined}
-        onMoistureChange={handleMoistureChange}
-        onRainToggle={handleRainToggle}
-        onPhChange={isPremiumPlan ? handlePhChange : undefined}
-        onSoilPreset={isPremiumPlan ? handleSoilPreset : undefined}
-        onResetSim={handleResetSim}
-        onSimulateError={handleSimulateError}
-        isLiveCloudData={isLiveCloudData}
-      />
 
       {/* Alerts Drawer */}
       <AlertsDrawer alerts={alerts} onDismiss={handleDismissAlert} />
