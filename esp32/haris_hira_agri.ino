@@ -37,9 +37,14 @@
 DHT dht(DHT_PIN, DHT_TYPE);
 WebServer server(80);
 
+// ---------------- WI-FI HOTSPOT CREDENTIALS ----------------
+
+const char* WIFI_SSID     = "DARWINLABS";
+const char* WIFI_PASSWORD = "D@rwin123";
+
 // ---------------- LIVE SUPABASE CLOUD CREDENTIALS ----------------
 
-const char* SUPABASE_URL = "https://jimukquqotecswdozteq.supabase.co";
+const char* SUPABASE_URL    = "https://jimukquqotecswdozteq.supabase.co";
 const char* SENSOR_ENDPOINT = "/rest/v1/sensor_readings";
 const char* EVENTS_ENDPOINT = "/rest/v1/pump_events";
 const char* DEVICE_ID       = "ESP32-HA-01";
@@ -95,6 +100,7 @@ String lastCloudStatus = "Connecting...";
 
 unsigned long lastSensorRead = 0;
 unsigned long lastCloudUpload = 0;
+unsigned long lastWifiRetry = 0;
 unsigned long pumpStartedAt = 0;
 unsigned long lastPumpStoppedAt = 0;
 
@@ -387,22 +393,42 @@ void handleApiStatus() {
   server.send(200, "application/json", makeStatusJson());
 }
 
-// ---------------- WIFI MANAGER ----------------
+// ---------------- WIFI CONNECTION LOGIC ----------------
 
 void connectWiFi() {
   WiFi.mode(WIFI_STA);
-  WiFiManager wifiManager;
-  wifiManager.setConfigPortalTimeout(180);
+  Serial.print("\n[Wi-Fi] Connecting directly to Mobile Hotspot: ");
+  Serial.println(WIFI_SSID);
 
-  Serial.println("[Wi-Fi] Connecting to saved Wi-Fi network...");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  // Wait up to 15 seconds for direct connection to DARWINLABS
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[Wi-Fi] Connected to Mobile Hotspot successfully!");
+    Serial.print("[Wi-Fi] ESP32 Local IP: ");
+    Serial.println(WiFi.localIP());
+    return;
+  }
+
+  // Fallback to WiFiManager portal if hotspot is not found
+  Serial.println("\n[Wi-Fi] Hotspot not found. Launching setup portal HiraAgri-Setup...");
+  WiFiManager wifiManager;
+  wifiManager.setConfigPortalTimeout(120);
   bool connected = wifiManager.autoConnect("HiraAgri-Setup");
 
   if (connected) {
-    Serial.println("[Wi-Fi] Connected successfully!");
+    Serial.println("[Wi-Fi] Connected via WiFiManager portal!");
     Serial.print("[Wi-Fi] ESP32 Local IP: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("[Wi-Fi] Wi-Fi setup timed out. Running in offline autonomous mode.");
+    Serial.println("[Wi-Fi] Running in offline autonomous mode.");
   }
 }
 
@@ -443,6 +469,13 @@ void loop() {
   server.handleClient();
 
   unsigned long now = millis();
+
+  // Reconnect Wi-Fi automatically if disconnected
+  if (WiFi.status() != WL_CONNECTED && (now - lastWifiRetry >= 10000)) {
+    lastWifiRetry = now;
+    Serial.println("[Wi-Fi] Reconnecting to hotspot: " + String(WIFI_SSID) + "...");
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  }
 
   // 1. Read Sensors & Run Local Autonomous Irrigation Logic
   if (now - lastSensorRead >= SENSOR_INTERVAL_MS) {
