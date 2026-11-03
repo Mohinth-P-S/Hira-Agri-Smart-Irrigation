@@ -55,7 +55,7 @@ const char* SUPABASE_ANON_KEY =
 
 // ---------------- SETTINGS ----------------
 
-const unsigned long CLOUD_INTERVAL_MS  = 10000; // Send update to website every 10 seconds
+const unsigned long CLOUD_INTERVAL_MS  = 15000; // Send update to website every 15 seconds (stable on mobile hotspots)
 const unsigned long SENSOR_INTERVAL_MS = 2000;  // Read sensors every 2 seconds
 
 const int SOIL_DRY_RAW = 3200;
@@ -229,7 +229,8 @@ void logPumpEvent(String eventType, String reason) {
 
   WiFiClientSecure client;
   client.setInsecure();
-  client.setHandshakeTimeout(15);
+  client.setHandshakeTimeout(10);
+  client.setBufferSizes(1024, 512); // Prevent SSL heap exhaustion on ESP32
 
   HTTPClient http;
   http.setReuse(false);
@@ -269,7 +270,8 @@ void uploadSensorData() {
 
   WiFiClientSecure client;
   client.setInsecure();
-  client.setHandshakeTimeout(15);
+  client.setHandshakeTimeout(10);
+  client.setBufferSizes(1024, 512); // Prevent SSL heap exhaustion on ESP32
 
   HTTPClient http;
   http.setReuse(false);
