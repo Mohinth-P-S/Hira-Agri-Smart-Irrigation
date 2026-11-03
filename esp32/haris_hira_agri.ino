@@ -230,7 +230,6 @@ void logPumpEvent(String eventType, String reason) {
   WiFiClientSecure client;
   client.setInsecure();
   client.setHandshakeTimeout(10);
-  client.setBufferSizes(1024, 512); // Prevent SSL heap exhaustion on ESP32
 
   HTTPClient http;
   http.setReuse(false);
@@ -271,7 +270,6 @@ void uploadSensorData() {
   WiFiClientSecure client;
   client.setInsecure();
   client.setHandshakeTimeout(10);
-  client.setBufferSizes(1024, 512); // Prevent SSL heap exhaustion on ESP32
 
   HTTPClient http;
   http.setReuse(false);
